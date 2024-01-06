@@ -3,10 +3,14 @@ name = "latex_rust"
 version = "0.1.0"
 edition = "2021"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
 [dependencies]
-chrono = "0.4.31"
-requests = "0.0.30"
-serde = "1.0.194"
+polars = { version = "0.36.2", features = [
+    "lazy",
+    "temporal",
+    "describe",
+    "json",
+    "parquet",
+    "dtype-datetime",
+] }
+reqwest = { version = "0.11.23", features = ["blocking"] }
 soup = "0.5.1"
