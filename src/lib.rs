@@ -1,11 +1,12 @@
 pub mod lib {
+    use chrono::{TimeZone, Utc};
     use polars::prelude::*;
     use soup::{NodeExt, QueryBuilderExt, Soup};
-    use std::collections::HashMap;
-    use std::fmt::{self};
     use std::{
-        fs::{self, File},
-        io::Read,
+        collections::HashMap,
+        fmt::{self},
+        fs::{self, File, OpenOptions},
+        io::{BufRead, BufReader, Read, Write},
     };
 
     pub fn request(url: &str) -> Option<reqwest::blocking::Response> {
@@ -16,6 +17,61 @@ pub mod lib {
         } else {
             None
         }
+    }
+
+    pub(crate) enum Type {
+        DocumentClass,
+        Package,
+    }
+
+    /// controlla quando è stato eseguito l'ultimo aggiornamento dei file
+    #[allow(unused_must_use)]
+    pub(crate) fn get_last(r#type: Type) -> bool {
+        let name = format!(
+            "./history/history-{}.txt",
+            match r#type {
+                Type::DocumentClass => "class",
+                Type::Package => "package",
+            }
+        );
+        let path = std::path::Path::new(&name);
+        let now = Utc::now();
+
+        if !path.exists() {
+            fs::create_dir_all(path.parent().unwrap());
+            fs::File::create(path);
+            let mut file = OpenOptions::new().write(true).open(path).unwrap();
+            writeln!(&mut file, "{}", now.format("%d/%m/%Y"));
+            drop(file);
+            return false;
+        }
+
+        let file = File::open(path).unwrap();
+        let last: Vec<u32> = BufReader::new(file)
+            .lines()
+            .last()
+            .unwrap()
+            .unwrap()
+            .split("/")
+            .map(|x| x.parse::<u32>().unwrap())
+            .collect();
+
+        let last_get = Utc
+            .with_ymd_and_hms(last[2] as i32, last[1], last[0], 0, 0, 0)
+            .unwrap();
+
+        let diff = (now - last_get).num_days();
+        if diff > 90 {
+            let mut file = OpenOptions::new()
+                .write(true)
+                .append(true)
+                .open(path)
+                .unwrap();
+            writeln!(&mut file, "{}", now.format("%d/%m/%Y"));
+            return true;
+        }
+
+        false
     }
 
     #[derive(Debug)]
@@ -31,11 +87,18 @@ pub mod lib {
         const PATH: &'static str = "./data/documentClass.csv";
 
         pub fn new() -> Self {
+            if super::lib::get_last(super::lib::Type::DocumentClass) {
+                let mut class = Self::create();
+                class.to_csv();
+                return class;
+            }
+
             if std::path::Path::new(Self::PATH).exists() {
                 Self::read_csv()
             } else {
                 let mut class = Self::create();
                 class.to_csv();
+                super::lib::get_last(super::lib::Type::DocumentClass);
                 class
             }
         }
@@ -113,12 +176,19 @@ pub mod lib {
 
     impl Package {
         pub fn new() -> Self {
+            if super::lib::get_last(super::lib::Type::Package) {
+                let mut package = Self::create();
+                package.to_csv();
+                return package;
+            }
+
             if std::path::Path::new("./data/packages").exists() {
                 Self::read_csv()
             } else {
-                let mut class = Self::create();
-                class.to_csv();
-                class
+                let mut package = Self::create();
+                package.to_csv();
+                super::lib::get_last(super::lib::Type::Package);
+                package
             }
         }
 
@@ -149,31 +219,33 @@ pub mod lib {
         }
 
         fn create() -> Self {
-            let mut package = HashMap::<String, DataFrame>::new();
+            let mut packages = HashMap::<String, DataFrame>::new();
+            let package_obsolete = Package::collect_data("https://www.ctan.org/topic/obsolete");
+            let class = Package::collect_data("https://ctan.org/topic/class");
 
             for char in 'A'..='Z' {
                 let url = format!("https://ctan.org/pkg/:{}", char);
                 let package_raw = Package::collect_data(url.as_str());
-                let package_obsolete = Package::collect_data("https://www.ctan.org/topic/obsolete");
-                let class = Package::collect_data("https://ctan.org/topic/class");
 
-                let pack_clear: Vec<String> = package_raw
+                // rimuovo i pacchetti che sono o obsoleti o delle classi
+                let package: Vec<String> = package_raw
                     .iter()
                     .filter(|x| !package_obsolete.contains(x))
                     .filter(|x| !class.contains(x))
                     .map(|x| x.clone())
                     .collect::<Vec<_>>();
 
-                package.insert(
+                packages.insert(
                     char.to_string(),
                     DataFrame::new(vec![
-                        Series::new("index", (1..=pack_clear.len() as i32).collect::<Vec<_>>()),
-                        Series::new("packages", pack_clear),
+                        Series::new("index", (1..=package.len() as i32).collect::<Vec<_>>()),
+                        Series::new("packages", package),
                     ])
                     .expect("Errore nella creazione del dataframe"),
                 );
             }
-            Self(package)
+
+            Self(packages)
         }
 
         #[allow(unused_must_use)]

@@ -22,3 +22,4 @@ Cargo.lock
 
 # Remove project file and folder that are generating
 /data
+/history
