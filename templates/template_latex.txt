@@ -1,0 +1,39 @@
+\usepackage{ {{ document_class }} }
+
+{% if !packages.0.is_none()  %}
+{% for package in packages.0.as_ref().unwrap() %}
+\usepackage{ {{ package }} }
+{% endfor %}
+{% endif %}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% INIZIO DOCUMENTO %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\begin{document}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% TITOLO DEL DOCUMENTO %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\title{ {{ title }} }
+\author{ {{ authors }} }
+{% if FileLatex::today(date.clone()) %}
+\date{\today}
+{% else %}
+\date{ {{ date.format("%d/%m/%Y") }} }
+{% endif %}
+\begin{titlepage}
+    \maketitle
+\end{titlepage}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% INDICE %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\begingroup
+\begin{titlepage}
+    \hypersetup{hidelinks}
+    \tableofcontents
+\end{titlepage}
+\endgroup
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% CAPITOLI %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+Hello World!!!
+
+\end{document}

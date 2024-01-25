@@ -1,4 +1,4 @@
-pub mod lib {
+pub mod utils {
     use chrono::{TimeZone, Utc};
     use polars::prelude::*;
     use soup::{NodeExt, QueryBuilderExt, Soup};
@@ -9,7 +9,7 @@ pub mod lib {
         io::{BufRead, BufReader, Read, Write},
     };
 
-    pub fn request(url: &str) -> Option<reqwest::blocking::Response> {
+    fn request(url: &str) -> Option<reqwest::blocking::Response> {
         let res = reqwest::blocking::get(url).expect("Errore nella get");
 
         if res.status().is_success() {
@@ -19,14 +19,14 @@ pub mod lib {
         }
     }
 
-    pub(crate) enum Type {
+    enum Type {
         DocumentClass,
         Package,
     }
 
     /// controlla quando è stato eseguito l'ultimo aggiornamento dei file
     #[allow(unused_must_use)]
-    pub(crate) fn get_last(r#type: Type) -> bool {
+    fn get_last(r#type: Type) -> bool {
         let name = format!(
             "./history/history-{}.txt",
             match r#type {
@@ -87,7 +87,7 @@ pub mod lib {
         const PATH: &'static str = "./data/documentClass.csv";
 
         pub fn new() -> Self {
-            if super::lib::get_last(super::lib::Type::DocumentClass) {
+            if super::utils::get_last(super::utils::Type::DocumentClass) {
                 let mut class = Self::create();
                 class.to_csv();
                 return class;
@@ -98,7 +98,7 @@ pub mod lib {
             } else {
                 let mut class = Self::create();
                 class.to_csv();
-                super::lib::get_last(super::lib::Type::DocumentClass);
+                super::utils::get_last(super::utils::Type::DocumentClass);
                 class
             }
         }
@@ -172,11 +172,11 @@ pub mod lib {
         }
     }
 
-    pub struct Package(HashMap<String, DataFrame>);
+    pub struct Package(pub HashMap<String, DataFrame>);
 
     impl Package {
         pub fn new() -> Self {
-            if super::lib::get_last(super::lib::Type::Package) {
+            if super::utils::get_last(super::utils::Type::Package) {
                 let mut package = Self::create();
                 package.to_csv();
                 return package;
@@ -187,7 +187,7 @@ pub mod lib {
             } else {
                 let mut package = Self::create();
                 package.to_csv();
-                super::lib::get_last(super::lib::Type::Package);
+                super::utils::get_last(super::utils::Type::Package);
                 package
             }
         }
